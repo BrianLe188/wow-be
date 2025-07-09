@@ -1,35 +1,32 @@
+mod config;
+mod handlers;
+mod models;
+mod routes;
+mod schema;
+mod services;
 mod utils;
 
-use axum::{Json, Router, routing::post};
-use serde_json::{Value, json};
+use axum::{Router, extract::Extension};
+use dotenvy::dotenv;
+use std::env;
 
-use crate::utils::nearest_neighbor;
+use crate::{
+    config::db::init_pool,
+    routes::{auth::auth_routes, waypoint::waypoint_routes},
+};
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/waypoints", post(optimize_waypoints));
+    dotenv().expect(".env file not found.");
+
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_UURL is missing.");
+    let pool = init_pool(&db_url).expect("Failed to init pool.");
+
+    let app = Router::new()
+        .nest("/auth", auth_routes())
+        .nest("/waypoints", waypoint_routes())
+        .layer(Extension(pool));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn optimize_waypoints(Json(payload): Json<Value>) -> Json<Value> {
-    let origin_array = payload.get("origin").unwrap().as_array().unwrap();
-    let origin = [
-        origin_array[0].as_f64().unwrap(),
-        origin_array[1].as_f64().unwrap(),
-    ];
-
-    let waypoints_json = payload.get("waypoints").unwrap().as_array().unwrap();
-    let waypoints: Vec<[f64; 2]> = waypoints_json
-        .iter()
-        .map(|pt| {
-            let arr = pt.as_array().unwrap();
-            [arr[0].as_f64().unwrap(), arr[1].as_f64().unwrap()]
-        })
-        .collect();
-
-    let path = nearest_neighbor(origin, waypoints);
-
-    Json(json!({ "path": path }))
 }
