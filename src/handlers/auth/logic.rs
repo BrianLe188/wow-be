@@ -2,17 +2,21 @@ use axum::{
     Json,
     extract::{Extension, Query},
 };
-use diesel::{SelectableHelper, result::Error::NotFound};
-use diesel_async::RunQueryDsl;
-use serde::Serialize;
+use diesel::result::Error::NotFound;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
-    config::db::{DbPool, get_conn},
-    models::user::{NewUser, User},
-    schema::users,
-    services::user::get_user_by_email,
+    config::db::{DbConn, DbPool, get_conn},
+    handlers::auth::{ReturnFeatureUsage, ReturnUser},
+    models::{
+        feature_usage::NewFeatureUsage,
+        user::{NewUser, User},
+    },
+    services::{
+        feature_usage::{create_feature_usage, get_feature_usage_by_user},
+        user::{create_user, get_user_by_email},
+    },
     utils::{
         apple::decode_and_verify_identify_token,
         error_handling::AppError,
@@ -20,6 +24,32 @@ use crate::{
         jwt::{sign_token, verify_token},
     },
 };
+
+pub async fn create_user_with_defaults(
+    conn: &mut DbConn,
+    email: &str,
+    hashed_password: &str,
+) -> Result<User, AppError> {
+    let payload = NewUser {
+        email,
+        password: hashed_password,
+    };
+
+    let new_user = create_user(conn, &payload)
+        .await
+        .map_err(|_| AppError::BadRequest("Failed to create new user.".into()))?;
+
+    let new_feature_usage_payload = NewFeatureUsage {
+        route_calculation_count: 5,
+        user_id: new_user.id,
+    };
+
+    create_feature_usage(conn, &new_feature_usage_payload)
+        .await
+        .map_err(|_| AppError::BadRequest("Failed to create new user.".into()))?;
+
+    Ok(new_user)
+}
 
 pub async fn sign_up(
     Extension(pool): Extension<DbPool>,
@@ -44,17 +74,7 @@ pub async fn sign_up(
 
     let hashed_password = hash_password(password.to_string()).map_err(AppError::BadRequest)?;
 
-    let payload = NewUser {
-        email,
-        password: hashed_password.as_ref(),
-    };
-
-    let new_user = diesel::insert_into(users::table)
-        .values(&payload)
-        .returning(User::as_returning())
-        .get_result::<User>(&mut conn)
-        .await
-        .map_err(|_| AppError::BadRequest("Failed to create new user.".into()))?;
+    let new_user = create_user_with_defaults(&mut conn, email, &hashed_password).await?;
 
     let access_token =
         sign_token(new_user.id.to_string(), new_user.email).map_err(AppError::BadRequest)?;
@@ -122,17 +142,7 @@ pub async fn apple_sign_in(
                 let hashed_password =
                     hash_password(Uuid::new_v4().to_string()).map_err(AppError::BadRequest)?;
 
-                let payload = NewUser {
-                    email: email.as_ref(),
-                    password: hashed_password.as_ref(),
-                };
-
-                diesel::insert_into(users::table)
-                    .values(&payload)
-                    .returning(User::as_returning())
-                    .get_result::<User>(&mut conn)
-                    .await
-                    .map_err(|_| AppError::BadRequest("Failed to create new user.".into()))?
+                create_user_with_defaults(&mut conn, &email, &hashed_password).await?
             }
             Err(err) => {
                 return Err(AppError::BadRequest(err.to_string()));
@@ -166,15 +176,16 @@ pub async fn check_valid_user(
         .await
         .map_err(|err| AppError::BadRequest(err.to_string()))?;
 
-    #[derive(Serialize)]
-    struct ReturnUser {
-        id: String,
-        email: String,
-    }
+    let feature_usage = get_feature_usage_by_user(&mut conn, user.id)
+        .await
+        .map_err(|err| AppError::BadRequest(err.to_string()))?;
 
     let return_user = ReturnUser {
         id: user.id.to_string(),
         email: user.email,
+        feature_usage: ReturnFeatureUsage {
+            route_calculation_count: feature_usage.route_calculation_count,
+        },
     };
 
     Ok(Json(json!({
