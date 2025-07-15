@@ -1,5 +1,6 @@
 mod config;
 mod handlers;
+mod middlewares;
 mod models;
 mod routes;
 mod schema;
@@ -12,7 +13,7 @@ use std::env;
 
 use crate::{
     config::db::init_pool,
-    routes::{auth::auth_routes, waypoint::waypoint_routes},
+    routes::{auth::auth_routes, iap::iap_routes, waypoint::waypoint_routes},
 };
 
 #[tokio::main]
@@ -25,6 +26,7 @@ async fn main() {
     let app = Router::new()
         .nest("/auth", auth_routes())
         .nest("/waypoints", waypoint_routes())
+        .nest("/iap", iap_routes())
         .layer(Extension(pool));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
