@@ -10,6 +10,53 @@ diesel::table! {
 }
 
 diesel::table! {
+    places (id) {
+        id -> Uuid,
+        place_id -> Text,
+        name -> Text,
+        formatted_address -> Nullable<Text>,
+        formatted_phone_number -> Nullable<Text>,
+        business_status -> Nullable<Text>,
+        adr_address -> Nullable<Text>,
+        icon -> Nullable<Text>,
+        #[max_length = 10]
+        icon_background_color -> Nullable<Varchar>,
+        icon_mask_base_uri -> Nullable<Text>,
+        rating -> Nullable<Float8>,
+        user_ratings_total -> Nullable<Int4>,
+        url -> Nullable<Text>,
+        website -> Nullable<Text>,
+        vicinity -> Nullable<Text>,
+        utc_offset -> Nullable<Text>,
+        reference -> Nullable<Text>,
+        geometry -> Nullable<Jsonb>,
+        types -> Nullable<Array<Nullable<Text>>>,
+        address_components -> Nullable<Jsonb>,
+        plus_code -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        range_time_view_count -> Int4,
+    }
+}
+
+diesel::table! {
+    reviews (id) {
+        id -> Uuid,
+        user_id -> Nullable<Uuid>,
+        place_id -> Uuid,
+        author_name -> Nullable<Text>,
+        author_url -> Nullable<Text>,
+        #[max_length = 2]
+        language -> Nullable<Varchar>,
+        profile_photo_url -> Nullable<Text>,
+        rating -> Float8,
+        relative_time_description -> Nullable<Text>,
+        text -> Text,
+        time -> Nullable<Int4>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     subscriptions (id) {
         id -> Uuid,
         user_id -> Uuid,
@@ -41,10 +88,14 @@ diesel::table! {
 }
 
 diesel::joinable!(feature_usages -> users (user_id));
+diesel::joinable!(reviews -> places (place_id));
+diesel::joinable!(reviews -> users (user_id));
 diesel::joinable!(subscriptions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     feature_usages,
+    places,
+    reviews,
     subscriptions,
     users,
 );

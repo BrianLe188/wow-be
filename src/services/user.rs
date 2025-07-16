@@ -21,9 +21,9 @@ pub async fn get_user_by_email(
         .await
 }
 
-pub async fn create_user<'a>(
+pub async fn create_user(
     conn: &mut DbConn,
-    payload: &'a NewUser<'a>,
+    payload: &NewUser,
 ) -> Result<User, diesel::result::Error> {
     diesel::insert_into(users::table)
         .values(payload)

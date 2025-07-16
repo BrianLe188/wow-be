@@ -1,5 +1,6 @@
 use diesel::{ExpressionMethods, SelectableHelper, query_dsl::methods::FilterDsl};
 use diesel_async::RunQueryDsl;
+use uuid::Uuid;
 
 use crate::{
     config::db::DbConn,
@@ -12,8 +13,6 @@ pub async fn get_subscription_by_user(
     user_id: &str,
     app_type: &str,
 ) -> Result<Subscription, diesel::result::Error> {
-    use uuid::Uuid;
-
     let user_uuid = match Uuid::parse_str(user_id) {
         Ok(uuid) => uuid,
         Err(_) => return Err(diesel::result::Error::NotFound),

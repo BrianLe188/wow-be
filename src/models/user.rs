@@ -14,7 +14,7 @@ pub struct User {
 
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::users)]
-pub struct NewUser<'a> {
-    pub email: &'a str,
-    pub password: &'a str,
+pub struct NewUser {
+    pub email: String,
+    pub password: String,
 }

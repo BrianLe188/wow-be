@@ -13,7 +13,7 @@ use std::env;
 
 use crate::{
     config::db::init_pool,
-    routes::{auth::auth_routes, iap::iap_routes, waypoint::waypoint_routes},
+    routes::{auth::auth_routes, iap::iap_routes, place::place_routes, waypoint::waypoint_routes},
 };
 
 #[tokio::main]
@@ -27,6 +27,7 @@ async fn main() {
         .nest("/auth", auth_routes())
         .nest("/waypoints", waypoint_routes())
         .nest("/iap", iap_routes())
+        .nest("/places", place_routes())
         .layer(Extension(pool));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

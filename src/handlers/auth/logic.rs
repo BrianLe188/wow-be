@@ -31,8 +31,8 @@ pub async fn create_user_with_defaults(
     hashed_password: &str,
 ) -> Result<User, AppError> {
     let payload = NewUser {
-        email,
-        password: hashed_password,
+        email: email.to_string(),
+        password: hashed_password.to_string(),
     };
 
     let new_user = create_user(conn, &payload)
