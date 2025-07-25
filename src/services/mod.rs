@@ -1,4 +1,5 @@
 pub mod feature_usage;
+pub mod mission;
 pub mod place;
 pub mod review;
 pub mod subscription;

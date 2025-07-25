@@ -51,7 +51,6 @@ pub async fn upsert_place(
     Json(payload): Json<UpsertPlacePayload>,
 ) -> Result<Json<Value>, AppError> {
     let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
-    println!("{:?}", payload);
 
     let place = &payload.place;
     let reviews = &payload.reviews;

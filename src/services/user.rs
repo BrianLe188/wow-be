@@ -3,12 +3,26 @@ use diesel::{
     query_dsl::methods::{FilterDsl, SelectDsl},
 };
 use diesel_async::RunQueryDsl;
+use uuid::Uuid;
 
 use crate::{
     config::db::DbConn,
     models::user::{NewUser, User},
     schema::users,
 };
+
+pub async fn get_user_by_id(conn: &mut DbConn, id: &str) -> Result<User, diesel::result::Error> {
+    let user_uuid = match Uuid::parse_str(id) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(diesel::result::Error::NotFound),
+    };
+
+    users::table
+        .filter(users::id.eq(user_uuid))
+        .select(User::as_select())
+        .first::<User>(conn)
+        .await
+}
 
 pub async fn get_user_by_email(
     conn: &mut DbConn,
@@ -30,4 +44,23 @@ pub async fn create_user(
         .returning(User::as_returning())
         .get_result::<User>(conn)
         .await
+}
+
+pub async fn give_exp_to_user(
+    conn: &mut DbConn,
+    id: &str,
+    exp: i32,
+) -> Result<(), diesel::result::Error> {
+    let user_uuid = match Uuid::parse_str(id) {
+        Ok(uuid) => uuid,
+        Err(_) => return Err(diesel::result::Error::NotFound),
+    };
+
+    diesel::update(users::table.filter(users::id.eq(user_uuid)))
+        .set(users::exp.eq(users::exp + exp))
+        .returning(User::as_returning())
+        .get_result::<User>(conn)
+        .await?;
+
+    Ok(())
 }

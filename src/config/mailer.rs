@@ -1,0 +1,40 @@
+use lettre::{
+    Message, SmtpTransport, Transport,
+    message::{Mailbox, header::ContentType},
+    transport::smtp::authentication::Credentials,
+};
+use std::env;
+
+pub fn init_mailer(username: &str, password: &str, relay_mail: &str) -> SmtpTransport {
+    let creds = Credentials::new(username.to_owned(), password.to_owned());
+
+    SmtpTransport::relay(relay_mail)
+        .unwrap()
+        .credentials(creds)
+        .build()
+}
+
+pub fn mailer_send(mailer: &SmtpTransport, mail: &Message) {
+    match mailer.send(mail) {
+        Ok(_) => println!("Email sent successfully!"),
+        Err(err) => println!("Email sent failed! {}", err),
+    }
+}
+
+pub fn mail_template(to_mail: &str, body: &str) -> Result<Message, String> {
+    let from_mail = env::var("MAILER_FROM_MAIL").map_err(|err| err.to_string())?;
+
+    Ok(Message::builder()
+        .from(Mailbox::new(
+            Some("NoBody".to_owned()),
+            from_mail.as_str().parse().unwrap(),
+        ))
+        .to(Mailbox::new(
+            Some("Hei".to_owned()),
+            to_mail.parse().unwrap(),
+        ))
+        .subject("Invite user")
+        .header(ContentType::TEXT_HTML)
+        .body(body.to_string())
+        .unwrap())
+}

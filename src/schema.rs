@@ -1,11 +1,39 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    exp_history (id) {
+        id -> Uuid,
+        user_id -> Nullable<Uuid>,
+        #[max_length = 20]
+        source -> Nullable<Varchar>,
+        amount -> Nullable<Int4>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     feature_usages (id) {
         id -> Uuid,
         route_calculation_count -> Int4,
         created_at -> Timestamp,
         user_id -> Uuid,
+    }
+}
+
+diesel::table! {
+    missions (id) {
+        id -> Uuid,
+        #[max_length = 20]
+        code -> Varchar,
+        #[max_length = 50]
+        name -> Varchar,
+        description -> Nullable<Text>,
+        exp_reward -> Int4,
+        gift_reward_count -> Nullable<Int4>,
+        #[max_length = 20]
+        gift_reward_type -> Nullable<Varchar>,
+        max_per_day -> Nullable<Int4>,
+        created_at -> Timestamp,
     }
 }
 
@@ -84,16 +112,21 @@ diesel::table! {
         email -> Varchar,
         password -> Text,
         created_at -> Timestamp,
+        level -> Nullable<Int4>,
+        exp -> Nullable<Int4>,
     }
 }
 
+diesel::joinable!(exp_history -> users (user_id));
 diesel::joinable!(feature_usages -> users (user_id));
 diesel::joinable!(reviews -> places (place_id));
 diesel::joinable!(reviews -> users (user_id));
 diesel::joinable!(subscriptions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    exp_history,
     feature_usages,
+    missions,
     places,
     reviews,
     subscriptions,

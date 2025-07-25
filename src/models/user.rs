@@ -9,6 +9,8 @@ pub struct User {
     pub id: Uuid,
     pub email: String,
     pub password: String,
+    pub level: Option<i32>,
+    pub exp: Option<i32>,
     pub created_at: NaiveDateTime,
 }
 
