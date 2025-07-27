@@ -37,6 +37,7 @@ async fn create_place_with_defaults(
             relative_time_description: review.relative_time_description.clone(),
             text: review.text.clone(),
             time: review.time,
+            medias: review.medias.clone(),
         };
         if let Err(err) = create_review(conn, &review_payload).await {
             eprintln!("Failed to create review while creating place: {}", err);

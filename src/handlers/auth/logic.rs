@@ -186,6 +186,7 @@ pub async fn check_valid_user(
         feature_usage: ReturnFeatureUsage {
             route_calculation_count: feature_usage.route_calculation_count,
         },
+        level: user.level,
     };
 
     Ok(Json(json!({

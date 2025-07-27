@@ -64,3 +64,29 @@ pub async fn give_exp_to_user(
 
     Ok(())
 }
+
+pub async fn level_up(conn: &mut DbConn, id: &str) -> Result<(), diesel::result::Error> {
+    let user = get_user_by_id(conn, id).await?;
+
+    let exp = user.exp.unwrap_or(0);
+    let level = user.level.unwrap_or(0);
+
+    let level_up_exp = 200;
+
+    if exp >= level_up_exp {
+        let add_level = exp / level_up_exp;
+        let remain_exp = exp % level_up_exp;
+
+        let user_uuid = Uuid::parse_str(id).map_err(|_| diesel::result::Error::NotFound)?;
+
+        diesel::update(users::table.filter(users::id.eq(user_uuid)))
+            .set((
+                users::level.eq(level + add_level),
+                users::exp.eq(remain_exp),
+            ))
+            .execute(conn)
+            .await?;
+    }
+
+    Ok(())
+}

@@ -81,6 +81,7 @@ diesel::table! {
         text -> Text,
         time -> Nullable<Int4>,
         created_at -> Timestamp,
+        medias -> Nullable<Array<Nullable<Jsonb>>>,
     }
 }
 

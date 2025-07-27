@@ -10,4 +10,5 @@ pub struct ReturnUser {
     pub id: String,
     pub email: String,
     pub feature_usage: ReturnFeatureUsage,
+    pub level: Option<i32>,
 }

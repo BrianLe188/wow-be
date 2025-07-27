@@ -9,7 +9,7 @@ use crate::{
     config::{cache::CacheConn, db::DbConn},
     models::mission::{Mission, NewMission},
     schema::missions,
-    services::user::give_exp_to_user,
+    services::user::{give_exp_to_user, level_up},
     utils::time::{get_seconds_to_midnight, get_today},
 };
 
@@ -47,6 +47,7 @@ pub async fn do_mission<'a>(
     cache_conn: &mut CacheConn<'a>,
     user_id: &str,
     code: &str,
+    scale: Option<i32>,
 ) -> Result<(), String> {
     let today = get_today();
 
@@ -67,7 +68,18 @@ pub async fn do_mission<'a>(
         }
     }
 
-    give_exp_to_user(conn, user_id, mission.exp_reward)
+    let exp_reward = {
+        match scale {
+            Some(num) => mission.exp_reward * num,
+            None => mission.exp_reward,
+        }
+    };
+
+    give_exp_to_user(conn, user_id, exp_reward)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    level_up(conn, user_id)
         .await
         .map_err(|err| err.to_string())?;
 

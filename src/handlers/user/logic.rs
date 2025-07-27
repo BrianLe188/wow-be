@@ -84,7 +84,7 @@ pub async fn response_invite(
         .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
 
     match action.as_str() {
-        "accept" => do_mission(&mut conn, &mut cache_conn, &inviter_id, code)
+        "accept" => do_mission(&mut conn, &mut cache_conn, &inviter_id, code, None)
             .await
             .map_err(|_| AppError::BadRequest("Failed to accept invite.".into()))?,
         "reject" => {}

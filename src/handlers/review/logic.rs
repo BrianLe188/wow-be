@@ -1,27 +1,78 @@
 use axum::{Extension, Json, extract::Query};
+use chrono::Utc;
 use serde_json::{Value, json};
+use tokio::task;
 
 use crate::{
-    config::db::{DbPool, get_conn},
+    config::{
+        cache::{CachePool, get_cache_conn},
+        db::{DbPool, get_conn},
+    },
     models::{review::NewReview, user::User},
-    services::review::{create_review, get_reviews},
+    services::{
+        mission::do_mission,
+        review::{create_review, get_reviews},
+    },
     utils::error_handling::AppError,
 };
 
 pub async fn user_review_place(
     Extension(pool): Extension<DbPool>,
+    Extension(cache_pool): Extension<CachePool>,
     Extension(current_user): Extension<User>,
     Json(mut payload): Json<NewReview>,
 ) -> Result<Json<Value>, AppError> {
     let user_id = current_user.id;
 
     payload.user_id = Some(user_id);
+    payload.time = Some(Utc::now().timestamp_millis() as i32);
+    payload.author_name = Some(current_user.email);
 
     let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
 
     let new_review = create_review(&mut conn, &payload)
         .await
         .map_err(|_| AppError::BadRequest("Failed to create review.".into()))?;
+
+    task::spawn(async move {
+        let mut cache_conn = match get_cache_conn(&cache_pool).await {
+            Ok(conn) => conn,
+            Err(err) => {
+                eprintln!("{}", err);
+                return;
+            }
+        };
+
+        if payload.medias.iter().len() > 0 {
+            let upload_photo_code = "UPLOAD_PHOTO";
+
+            if let Err(err) = do_mission(
+                &mut conn,
+                &mut cache_conn,
+                &current_user.id.to_string(),
+                upload_photo_code,
+                Some(payload.medias.iter().len() as i32),
+            )
+            .await
+            {
+                eprintln!("Failed to do mission: {} - {}", upload_photo_code, err)
+            };
+        }
+
+        let review_code = "REVIEW_PLACE";
+
+        if let Err(err) = do_mission(
+            &mut conn,
+            &mut cache_conn,
+            &current_user.id.to_string(),
+            review_code,
+            None,
+        )
+        .await
+        {
+            eprintln!("Failed to do mission: {} - {}", review_code, err)
+        }
+    });
 
     Ok(Json(json!({
         "review": new_review

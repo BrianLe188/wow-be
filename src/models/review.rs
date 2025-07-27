@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 #[derive(Queryable, Selectable, Serialize)]
@@ -19,6 +20,7 @@ pub struct Review {
     pub text: String,
     pub time: Option<i32>,
     pub created_at: NaiveDateTime,
+    pub medias: Option<Vec<Option<Value>>>,
 }
 
 #[derive(Insertable, Deserialize, Debug)]
@@ -34,4 +36,5 @@ pub struct NewReview {
     pub relative_time_description: Option<String>,
     pub text: String,
     pub time: Option<i32>,
+    pub medias: Option<Vec<Option<Value>>>,
 }
