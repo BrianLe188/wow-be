@@ -1,9 +1,28 @@
-use axum::Json;
+use axum::{Extension, Json};
 use serde_json::{Value, json};
 
-use crate::utils::tsp::nearest_neighbor;
+use crate::{
+    config::db::{DbPool, get_conn},
+    models::user::User,
+    services::feature_usage::{get_feature_usage_by_user, give_usage_count_to_user},
+    utils::{error_handling::AppError, tsp::nearest_neighbor},
+};
 
-pub async fn optimize_waypoints(Json(payload): Json<Value>) -> Json<Value> {
+pub async fn optimize_waypoints(
+    Extension(pool): Extension<DbPool>,
+    Extension(current_user): Extension<User>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, AppError> {
+    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+
+    let feature_usage = get_feature_usage_by_user(&mut conn, &current_user.id.to_string())
+        .await
+        .map_err(|_| AppError::BadRequest("Failed to calculate usage.".into()))?;
+
+    if feature_usage.route_calculation_count == 0 {
+        return Err(AppError::BadRequest("You are reach the limit.".into()));
+    }
+
     let origin_array = payload.get("origin").unwrap().as_array().unwrap();
     let origin = [
         origin_array[0].as_f64().unwrap(),
@@ -21,5 +40,9 @@ pub async fn optimize_waypoints(Json(payload): Json<Value>) -> Json<Value> {
 
     let path = nearest_neighbor(origin, waypoints);
 
-    Json(json!({ "path": path }))
+    give_usage_count_to_user(&mut conn, &current_user.id.to_string(), -1)
+        .await
+        .map_err(|_| AppError::BadRequest("Failed to calculate usage.".into()))?;
+
+    Ok(Json(json!({ "path": path })))
 }

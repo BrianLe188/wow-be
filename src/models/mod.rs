@@ -1,3 +1,4 @@
+pub mod action_count;
 pub mod feature_usage;
 pub mod mission;
 pub mod place;

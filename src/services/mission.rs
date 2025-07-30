@@ -9,7 +9,10 @@ use crate::{
     config::{cache::CacheConn, db::DbConn},
     models::mission::{Mission, NewMission},
     schema::missions,
-    services::user::{give_exp_to_user, level_up},
+    services::{
+        feature_usage::give_usage_count_to_user,
+        user::{give_exp_to_user, level_up},
+    },
     utils::time::{get_seconds_to_midnight, get_today},
 };
 
@@ -79,9 +82,15 @@ pub async fn do_mission<'a>(
         .await
         .map_err(|err| err.to_string())?;
 
-    level_up(conn, user_id)
+    let is_up = level_up(conn, user_id)
         .await
         .map_err(|err| err.to_string())?;
+
+    if is_up {
+        give_usage_count_to_user(conn, user_id, 1)
+            .await
+            .map_err(|err| err.to_string())?;
+    }
 
     let _: i32 = cache_conn
         .hincr(&cache_key, code, 1)

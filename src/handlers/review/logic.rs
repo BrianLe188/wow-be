@@ -8,8 +8,9 @@ use crate::{
         cache::{CachePool, get_cache_conn},
         db::{DbPool, get_conn},
     },
-    models::{review::NewReview, user::User},
+    models::{action_count::UpdateActionCountPayload, review::NewReview, user::User},
     services::{
+        action_count::increase_action_count_by_user,
         mission::do_mission,
         review::{create_review, get_reviews},
     },
@@ -71,6 +72,20 @@ pub async fn user_review_place(
         .await
         {
             eprintln!("Failed to do mission: {} - {}", review_code, err)
+        }
+
+        let increase_payload = UpdateActionCountPayload {
+            review_place: Some(1),
+        };
+
+        if let Err(err) = increase_action_count_by_user(
+            &mut conn,
+            &current_user.id.to_string(),
+            &increase_payload,
+        )
+        .await
+        {
+            eprintln!("Failed to increase action count: {} - {}", review_code, err)
         }
     });
 

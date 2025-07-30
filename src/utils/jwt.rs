@@ -36,7 +36,7 @@ pub fn sign_token(sub: String, email: String) -> Result<String, String> {
     .map_err(|err| err.to_string())
 }
 
-pub fn verify_token(token: String) -> Result<TokenData<Claims>, String> {
+pub fn verify_token(token: &str) -> Result<TokenData<Claims>, String> {
     let secret_key = env::var("JWT_SECRET_KEY").map_err(|err| err.to_string())?;
 
     decode::<Claims>(

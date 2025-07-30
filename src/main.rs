@@ -11,7 +11,7 @@ mod utils;
 use axum::{Router, extract::Extension};
 use dotenvy::dotenv;
 use std::env;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
 use crate::{
@@ -24,6 +24,8 @@ use crate::{
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+
     dotenv().expect(".env file not found.");
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is missing.");
@@ -51,7 +53,8 @@ async fn main() {
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+                .on_response(DefaultOnResponse::new().level(Level::INFO))
+                .on_failure(DefaultOnFailure::new().level(Level::ERROR)),
         )
         .layer(Extension(pool))
         .layer(Extension(cache_pool))

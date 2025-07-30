@@ -28,7 +28,7 @@ pub async fn authorization_middleware(
     let (_, token) = (header.next(), header.next());
 
     let decoded_claims = match token {
-        Some(token) => verify_token(token.to_string()).map_err(AppError::BadRequest)?,
+        Some(token) => verify_token(token).map_err(AppError::BadRequest)?,
         None => return Err(AppError::BadRequest("Missing token.".into())),
     };
 

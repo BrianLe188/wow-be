@@ -1,6 +1,15 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    action_count (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        review_place -> Nullable<Int4>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     exp_history (id) {
         id -> Uuid,
         user_id -> Nullable<Uuid>,
@@ -115,9 +124,12 @@ diesel::table! {
         created_at -> Timestamp,
         level -> Nullable<Int4>,
         exp -> Nullable<Int4>,
+        avatar_url -> Nullable<Text>,
+        cover_url -> Nullable<Text>,
     }
 }
 
+diesel::joinable!(action_count -> users (user_id));
 diesel::joinable!(exp_history -> users (user_id));
 diesel::joinable!(feature_usages -> users (user_id));
 diesel::joinable!(reviews -> places (place_id));
@@ -125,6 +137,7 @@ diesel::joinable!(reviews -> users (user_id));
 diesel::joinable!(subscriptions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    action_count,
     exp_history,
     feature_usages,
     missions,
