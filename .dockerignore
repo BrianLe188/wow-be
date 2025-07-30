@@ -5,5 +5,4 @@ target/
 *.swp
 *.swp
 *.log
-*.env
 .DS_Store
