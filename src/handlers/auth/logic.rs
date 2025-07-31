@@ -47,7 +47,7 @@ async fn response_invite<'a>(
         .await
         .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
 
-    do_mission(conn, cache_conn, &inviter_id, code, None)
+    do_mission(conn, cache_conn, &inviter_id, "INVITE_FRIEND", None)
         .await
         .map_err(|_| AppError::BadRequest("Failed to accept invite.".into()))?;
 

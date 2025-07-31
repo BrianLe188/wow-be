@@ -39,7 +39,7 @@ fn generate_pin_code() -> String {
 
 fn generate_invite_link(code: &str) -> Result<String, String> {
     let web_url = env::var("WEB_URL").map_err(|_| "WEB_URL is missing.".to_string())?;
-    Ok(format!("{}/sign-in?invite-code={}", web_url, code))
+    Ok(format!("{}/sign-up?invite-code={}", web_url, code))
 }
 
 pub async fn invite(
