@@ -1,7 +1,7 @@
 use lettre::{
     Message, SmtpTransport, Transport,
     message::{Mailbox, header::ContentType},
-    transport::smtp::authentication::Credentials,
+    transport::smtp::{authentication::Credentials, response::Response},
 };
 use std::env;
 
@@ -14,11 +14,8 @@ pub fn init_mailer(username: &str, password: &str, relay_mail: &str) -> SmtpTran
         .build()
 }
 
-pub fn mailer_send(mailer: &SmtpTransport, mail: &Message) {
-    match mailer.send(mail) {
-        Ok(_) => println!("Email sent successfully!"),
-        Err(err) => println!("Email sent failed! {}", err),
-    }
+pub fn mailer_send(mailer: &SmtpTransport, mail: &Message) -> Result<Response, String> {
+    mailer.send(mail).map_err(|err| err.to_string())
 }
 
 pub fn mail_template(to_mail: &str, body: &str) -> Result<Message, String> {

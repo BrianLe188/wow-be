@@ -23,7 +23,7 @@ pub struct Review {
     pub medias: Option<Vec<Option<Value>>>,
 }
 
-#[derive(Insertable, Deserialize, Debug)]
+#[derive(Insertable, Deserialize, Debug, Clone)]
 #[diesel(table_name = crate::schema::reviews)]
 pub struct NewReview {
     pub user_id: Option<Uuid>,

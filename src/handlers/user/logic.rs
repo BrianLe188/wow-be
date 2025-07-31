@@ -1,9 +1,14 @@
 use axum::{Extension, Json, extract::Path};
+use axum_valid::Valid;
 use bb8_redis::redis::AsyncCommands;
 use lettre::SmtpTransport;
 use rand::Rng;
 use serde_json::{Value, json};
 use tokio::task;
+use tokio_retry::{
+    Retry,
+    strategy::{ExponentialBackoff, jitter},
+};
 
 use crate::{
     config::{
@@ -12,6 +17,7 @@ use crate::{
         mailer::{mail_template, mailer_send},
         storage::delete_file,
     },
+    handlers::user::InvitePayload,
     models::user::User,
     services::{
         action_count::get_action_count_by_user,
@@ -19,7 +25,7 @@ use crate::{
         mission::do_mission,
         user::{get_user_by_id, update_user_photo},
     },
-    utils::error_handling::AppError,
+    utils::{error_handling::AppError, mail_template::invite_user_mail_body},
 };
 
 fn generate_pin_code() -> String {
@@ -33,13 +39,9 @@ pub async fn invite(
     Extension(cache_pool): Extension<CachePool>,
     Extension(current_user): Extension<User>,
     Extension(mailer): Extension<SmtpTransport>,
-    Json(payload): Json<Value>,
+    Valid(Json(payload)): Valid<Json<InvitePayload>>,
 ) -> Result<Json<Value>, AppError> {
-    let to_email = payload
-        .get("email")
-        .ok_or(AppError::BadRequest("Missing email.".into()))?
-        .as_str()
-        .unwrap();
+    let to_email = payload.email;
 
     let code = generate_pin_code();
 
@@ -59,9 +61,22 @@ pub async fn invite(
         .await
         .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
 
-    if let Ok(mail) = mail_template(to_email, "") {
-        mailer_send(&mailer, &mail);
-    }
+    task::spawn(async move {
+        let retry_strategy = ExponentialBackoff::from_millis(10).map(jitter).take(3);
+
+        let result = Retry::spawn(retry_strategy, || async {
+            let invite_mail_body = invite_user_mail_body("")?;
+
+            let mail = mail_template(&to_email, &invite_mail_body)?;
+
+            mailer_send(&mailer, &mail)
+        })
+        .await;
+
+        if let Err(err) = result {
+            eprintln!("Failed after retries: {}", err);
+        }
+    });
 
     Ok(Json(json!({})))
 }
@@ -175,8 +190,12 @@ pub async fn update_photo(
         }
 
         if !path.is_empty() {
-            if let Err(err) = delete_file(&path).await {
-                eprintln!("{}", err);
+            let retry_strategy = ExponentialBackoff::from_millis(10).map(jitter).take(3);
+
+            let result = Retry::spawn(retry_strategy, || async { delete_file(&path).await }).await;
+
+            if let Err(err) = result {
+                eprintln!("Failed after retries: {}", err);
             }
         }
     });
