@@ -21,8 +21,6 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/wow-be .
 
-COPY .env .
-
 EXPOSE 3000
 
-CMD ["./wow-be"]
+CMD ["/bin/sh", "-c", "./wow-be"]
