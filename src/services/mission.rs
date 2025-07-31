@@ -97,13 +97,11 @@ pub async fn do_mission<'a>(
         .await
         .map_err(|err| err.to_string())?;
 
-    if let Some(count) = current_count {
-        if count == 0 {
-            let _: i64 = cache_conn
-                .expire(&cache_key, get_seconds_to_midnight())
-                .await
-                .map_err(|err| err.to_string())?;
-        }
+    if current_count.is_none() {
+        let _: i64 = cache_conn
+            .expire(&cache_key, get_seconds_to_midnight())
+            .await
+            .map_err(|err| err.to_string())?;
     }
 
     Ok(())

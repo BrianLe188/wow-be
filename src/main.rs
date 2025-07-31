@@ -12,7 +12,7 @@ use axum::{Router, extract::Extension};
 use dotenvy::dotenv;
 use std::env;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnResponse, TraceLayer};
-use tracing::Level;
+use tracing::{Level, info};
 
 use crate::{
     config::{cache::init_cache_pool, db::init_pool, mailer::init_mailer},
@@ -27,6 +27,8 @@ async fn main() {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     dotenv().ok();
+
+    let port = env::var("PORT").unwrap_or("8080".to_string());
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is missing.");
     let pool = init_pool(&db_url).expect("Failed to init pool.");
@@ -60,7 +62,14 @@ async fn main() {
         .layer(Extension(cache_pool))
         .layer(Extension(mailer));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    info!(
+        "\n\n==============================\n  🚀 Service is running!  \n      🌐 Port: {}\n==============================\n",
+        port
+    );
+
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
+        .await
+        .unwrap();
 
     axum::serve(listener, app).await.unwrap();
 }

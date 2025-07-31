@@ -29,7 +29,7 @@ pub async fn user_review_place(
     payload.time = Some(Utc::now().timestamp_millis() as i32);
     payload.author_name = Some(current_user.email);
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let new_review = create_review(&mut conn, &payload)
         .await
@@ -104,7 +104,7 @@ pub async fn search_reviews(
         .as_str()
         .unwrap();
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let reviews = get_reviews(&mut conn, place_id)
         .await

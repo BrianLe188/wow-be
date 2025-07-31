@@ -1,3 +1,5 @@
+use std::env;
+
 use axum::{Extension, Json, extract::Path};
 use axum_valid::Valid;
 use bb8_redis::redis::AsyncCommands;
@@ -35,6 +37,11 @@ fn generate_pin_code() -> String {
         .collect()
 }
 
+fn generate_invite_link(code: &str) -> Result<String, String> {
+    let web_url = env::var("WEB_URL").map_err(|_| "WEB_URL is missing.".to_string())?;
+    Ok(format!("{}/sign-in?invite-code={}", web_url, code))
+}
+
 pub async fn invite(
     Extension(cache_pool): Extension<CachePool>,
     Extension(current_user): Extension<User>,
@@ -65,7 +72,9 @@ pub async fn invite(
         let retry_strategy = ExponentialBackoff::from_millis(10).map(jitter).take(3);
 
         let result = Retry::spawn(retry_strategy, || async {
-            let invite_mail_body = invite_user_mail_body("")?;
+            let invite_link = generate_invite_link(&code)?;
+
+            let invite_mail_body = invite_user_mail_body(&invite_link)?;
 
             let mail = mail_template(&to_email, &invite_mail_body)?;
 
@@ -81,51 +90,11 @@ pub async fn invite(
     Ok(Json(json!({})))
 }
 
-pub async fn response_invite(
-    Extension(pool): Extension<DbPool>,
-    Extension(cache_pool): Extension<CachePool>,
-    Path(action): Path<String>,
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, AppError> {
-    let code = payload
-        .get("code")
-        .ok_or(AppError::BadRequest("Missing code.".into()))?
-        .as_str()
-        .unwrap();
-
-    let mut cache_conn = get_cache_conn(&cache_pool)
-        .await
-        .map_err(AppError::BadRequest)?;
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
-
-    let key = format!("invite:{}", code);
-
-    let inviter_id: String = cache_conn
-        .get(&key)
-        .await
-        .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
-
-    match action.as_str() {
-        "accept" => do_mission(&mut conn, &mut cache_conn, &inviter_id, code, None)
-            .await
-            .map_err(|_| AppError::BadRequest("Failed to accept invite.".into()))?,
-        "reject" => {}
-        _ => {}
-    };
-
-    let _: () = cache_conn
-        .del(&key)
-        .await
-        .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
-
-    Ok(Json(json!({})))
-}
-
 pub async fn get_profile(
     Extension(pool): Extension<DbPool>,
     Path(user_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let mut user = get_user_by_id(&mut conn, &user_id)
         .await
@@ -166,7 +135,7 @@ pub async fn update_photo(
         .as_str()
         .unwrap();
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let user = update_user_photo(&mut conn, &current_user.id.to_string(), field, photo_url)
         .await
@@ -210,7 +179,7 @@ pub async fn check_in(
     Extension(cache_pool): Extension<CachePool>,
     Extension(current_user): Extension<User>,
 ) -> Result<Json<Value>, AppError> {
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let mut cache_conn = get_cache_conn(&cache_pool)
         .await

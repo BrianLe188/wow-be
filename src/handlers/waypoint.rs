@@ -13,7 +13,7 @@ pub async fn optimize_waypoints(
     Extension(current_user): Extension<User>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, AppError> {
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let feature_usage = get_feature_usage_by_user(&mut conn, &current_user.id.to_string())
         .await

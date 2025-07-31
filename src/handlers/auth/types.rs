@@ -32,6 +32,8 @@ pub struct SignUpPayload {
 
     #[validate(length(min = 8, message = "Password must be at least 8 characters."))]
     pub password: String,
+
+    pub code: Option<String>,
 }
 
 #[derive(Validate, Deserialize)]

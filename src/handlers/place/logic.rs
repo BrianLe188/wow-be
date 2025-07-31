@@ -51,7 +51,7 @@ pub async fn upsert_place(
     Extension(pool): Extension<DbPool>,
     Json(payload): Json<UpsertPlacePayload>,
 ) -> Result<Json<Value>, AppError> {
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let place = &payload.place;
     let reviews = &payload.reviews;
@@ -75,7 +75,7 @@ pub async fn increase_view(
     Extension(pool): Extension<DbPool>,
     Path(place_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let place = match increase_place_view(&mut conn, place_id.as_str()).await {
         Ok(place) => place,

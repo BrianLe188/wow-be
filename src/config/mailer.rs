@@ -23,14 +23,14 @@ pub fn mail_template(to_mail: &str, body: &str) -> Result<Message, String> {
 
     Ok(Message::builder()
         .from(Mailbox::new(
-            Some("NoBody".to_owned()),
+            Some("Wow".to_owned()),
             from_mail.as_str().parse().unwrap(),
         ))
         .to(Mailbox::new(
-            Some("Hei".to_owned()),
+            Some(to_mail.to_owned()),
             to_mail.parse().unwrap(),
         ))
-        .subject("Invite user")
+        .subject("You've Been Invited to Wow App")
         .header(ContentType::TEXT_HTML)
         .body(body.to_string())
         .unwrap())

@@ -32,7 +32,7 @@ pub async fn authorization_middleware(
         None => return Err(AppError::BadRequest("Missing token.".into())),
     };
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let current_user = get_user_by_email(&mut conn, &decoded_claims.claims.email)
         .await

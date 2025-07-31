@@ -137,7 +137,7 @@ pub async fn save_receipt(
         _ => return Err(AppError::BadRequest("Invalid app type.".into())),
     };
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     process_purchase(&mut conn, &app_type, user_id.to_string().as_str(), receipt)
         .await
@@ -153,7 +153,7 @@ pub async fn get_user_subscription(
 ) -> Result<Json<Value>, AppError> {
     let user_id = current_user.id;
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let user_id_str = user_id.to_string();
 

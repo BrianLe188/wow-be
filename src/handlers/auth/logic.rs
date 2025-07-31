@@ -4,11 +4,15 @@ use axum::{
 };
 use axum_valid::Valid;
 use diesel::result::Error::NotFound;
+use redis::AsyncCommands;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
-    config::db::{DbConn, DbPool, get_conn},
+    config::{
+        cache::{CacheConn, CachePool, get_cache_conn},
+        db::{DbConn, DbPool, get_conn},
+    },
     handlers::auth::{
         CheckValidUserQuery, ReturnFeatureUsage, ReturnUser, SignInPayload, SignUpPayload,
     },
@@ -20,6 +24,7 @@ use crate::{
     services::{
         action_count::create_action_count,
         feature_usage::{create_feature_usage, get_feature_usage_by_user},
+        mission::do_mission,
         user::{create_user, get_user_by_email},
     },
     utils::{
@@ -30,7 +35,31 @@ use crate::{
     },
 };
 
-pub async fn create_user_with_defaults(
+async fn response_invite<'a>(
+    conn: &mut DbConn,
+    cache_conn: &mut CacheConn<'a>,
+    code: &str,
+) -> Result<(), AppError> {
+    let key = format!("invite:{}", code);
+
+    let inviter_id: String = cache_conn
+        .get(&key)
+        .await
+        .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
+
+    do_mission(conn, cache_conn, &inviter_id, code, None)
+        .await
+        .map_err(|_| AppError::BadRequest("Failed to accept invite.".into()))?;
+
+    let _: () = cache_conn
+        .del(&key)
+        .await
+        .map_err(|e| AppError::BadRequest(format!("Redis error: {}", e)))?;
+
+    Ok(())
+}
+
+async fn create_user_with_defaults(
     conn: &mut DbConn,
     email: &str,
     hashed_password: &str,
@@ -69,12 +98,14 @@ pub async fn create_user_with_defaults(
 
 pub async fn sign_up(
     Extension(pool): Extension<DbPool>,
+    Extension(cache_pool): Extension<CachePool>,
     Valid(Json(payload)): Valid<Json<SignUpPayload>>,
 ) -> Result<Json<Value>, AppError> {
     let email = payload.email;
     let password = payload.password;
+    let invite_code = payload.code;
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     if get_user_by_email(&mut conn, &email).await.is_ok() {
         return Err(AppError::BadRequest("User already existing.".into()));
@@ -83,6 +114,16 @@ pub async fn sign_up(
     let hashed_password = hash_password(password).map_err(AppError::BadRequest)?;
 
     let new_user = create_user_with_defaults(&mut conn, &email, &hashed_password).await?;
+
+    let mut cache_conn = get_cache_conn(&cache_pool)
+        .await
+        .map_err(AppError::BadRequest)?;
+
+    if let Some(code) = invite_code {
+        if let Err(err) = response_invite(&mut conn, &mut cache_conn, &code).await {
+            eprintln!("{:?}", err);
+        }
+    }
 
     let access_token =
         sign_token(new_user.id.to_string(), new_user.email).map_err(AppError::BadRequest)?;
@@ -97,7 +138,7 @@ pub async fn sign_in(
     let email = payload.email;
     let password = payload.password;
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let user = match get_user_by_email(&mut conn, &email).await {
         Ok(user) => user,
@@ -134,7 +175,7 @@ pub async fn apple_sign_in(
     let user_email = apple_claims.email;
 
     if let Some(email) = user_email {
-        let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+        let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
         let user = match get_user_by_email(&mut conn, &email).await {
             Ok(user) => user,
@@ -166,7 +207,7 @@ pub async fn check_valid_user(
 
     let decoded_claims = verify_token(&token).map_err(AppError::BadRequest)?;
 
-    let mut conn = get_conn(pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let user = get_user_by_email(&mut conn, &decoded_claims.claims.email)
         .await
