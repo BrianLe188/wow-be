@@ -29,11 +29,12 @@ jobs:
 
       - name: Deploy to Railway
         env:
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           SVC_ID: ${{ secrets.SVC_ID }}
         run: |
           if [ -n "${SVC_ID}" ]; then
-            railway up --service="${SVC_ID}" --production
+            railway up --service "${SVC_ID}" --environment "${RAILWAY_ENVIRONMENT_ID}" 
           else
-            railway up --production
+            railway up --environment "${RAILWAY_ENVIRONMENT_ID}"
           fi
