@@ -20,6 +20,13 @@ jobs:
         run: cargo build --verbose
 
       - name: Run tests
+        env:
+          DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
+          CACHE_URL_TEST: ${{ secrets.CACHE_URL_TEST }}
+          MAILER_USERNAME_TEST: ${{ secrets.MAILER_USERNAME_TEST }}
+          MAILER_PASSWORD_TEST: ${{ secrets.MAILER_PASSWORD_TEST }}
+          MAILER_RELAY_MAIL_TEST: ${{ secrets.MAILER_RELAY_MAIL_TEST }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: cargo test --verbose
 
       - name: Install Railway CLI

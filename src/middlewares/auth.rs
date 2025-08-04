@@ -15,9 +15,9 @@ pub async fn authorization_middleware(
     let auth_header = match req.headers_mut().get(AUTHORIZATION) {
         Some(header) => header
             .to_str()
-            .map_err(|_| AppError::BadRequest("Empty header is not allowed.".into()))?,
+            .map_err(|_| AppError::Unauthorized("Empty header is not allowed.".into()))?,
         None => {
-            return Err(AppError::BadRequest(
+            return Err(AppError::Unauthorized(
                 "Please add the JWT token to the header.".into(),
             ));
         }
@@ -28,15 +28,17 @@ pub async fn authorization_middleware(
     let (_, token) = (header.next(), header.next());
 
     let decoded_claims = match token {
-        Some(token) => verify_token(token).map_err(AppError::BadRequest)?,
-        None => return Err(AppError::BadRequest("Missing token.".into())),
+        Some(token) => verify_token(token).map_err(AppError::Unauthorized)?,
+        None => return Err(AppError::Unauthorized("Missing token.".into())),
     };
 
-    let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
+    let mut conn = get_conn(&pool)
+        .await
+        .map_err(|_| AppError::Unauthorized("Something wen't wrong.".into()))?;
 
     let current_user = get_user_by_email(&mut conn, &decoded_claims.claims.email)
         .await
-        .map_err(|err| AppError::BadRequest(err.to_string()))?;
+        .map_err(|err| AppError::Unauthorized(err.to_string()))?;
 
     req.extensions_mut().insert(current_user);
 
