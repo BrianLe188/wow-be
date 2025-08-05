@@ -25,12 +25,10 @@ pub fn invite_user_mail_body(invite_link: &str) -> Result<String, String> {
         "#;
 
     let mut tera = Tera::default();
-    tera.add_raw_template("invite.html", template)
-        .map_err(|err| err.to_string())?;
+    tera.add_raw_template("invite.html", template).map_err(|err| err.to_string())?;
 
     let mut context = Context::new();
     context.insert("invite_link", invite_link);
 
-    tera.render("invite.html", &context)
-        .map_err(|err| err.to_string())
+    tera.render("invite.html", &context).map_err(|err| err.to_string())
 }

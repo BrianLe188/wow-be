@@ -136,13 +136,4 @@ diesel::joinable!(reviews -> places (place_id));
 diesel::joinable!(reviews -> users (user_id));
 diesel::joinable!(subscriptions -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    action_count,
-    exp_history,
-    feature_usages,
-    missions,
-    places,
-    reviews,
-    subscriptions,
-    users,
-);
+diesel::allow_tables_to_appear_in_same_query!(action_count, exp_history, feature_usages, missions, places, reviews, subscriptions, users,);

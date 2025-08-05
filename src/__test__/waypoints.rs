@@ -37,16 +37,11 @@ mod test {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-        println!("{:?}", body);
-
         body["access_token"].as_str().unwrap().to_string()
     }
 
     async fn get_access_token(app: Router) -> String {
-        ACCESS_TOKEN
-            .get_or_init(|| async { sign_in(app).await })
-            .await
-            .to_string()
+        ACCESS_TOKEN.get_or_init(|| async { sign_in(app).await }).await.to_string()
     }
 
     #[tokio::test]

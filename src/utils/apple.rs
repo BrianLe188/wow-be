@@ -48,15 +48,10 @@ async fn fetch_apple_jwks() -> Result<Value, Box<dyn std::error::Error>> {
 }
 
 fn find_apple_key<'a>(jwks: &'a Value, kid: &str) -> Option<&'a Value> {
-    jwks["keys"]
-        .as_array()?
-        .iter()
-        .find(|key| key["kid"] == kid)
+    jwks["keys"].as_array()?.iter().find(|key| key["kid"] == kid)
 }
 
-pub async fn decode_and_verify_identify_token(
-    token: &str,
-) -> Result<AppleClaims, Box<dyn std::error::Error>> {
+pub async fn decode_and_verify_identify_token(token: &str) -> Result<AppleClaims, Box<dyn std::error::Error>> {
     let jwks = fetch_apple_jwks().await?;
     let header = decode_header(token)?;
     let kid = header.kid.ok_or("No key ID found in token header")?;

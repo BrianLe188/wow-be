@@ -1,29 +1,28 @@
 use axum::{Extension, Json, extract::Path};
 use diesel::result::Error::NotFound;
+use redis::AsyncCommands;
 use serde_json::{Value, json};
 
 use crate::{
-    config::db::{DbConn, DbPool, get_conn},
+    config::{
+        cache::{CachePool, get_cache_conn},
+        db::{DbConn, DbPool, get_conn},
+    },
     handlers::place::UpsertPlacePayload,
     models::{
         place::{NewPlace, Place},
         review::NewReview,
+        user::User,
     },
     services::{
         place::{create_place, get_place_by_place_id, increase_place_view},
         review::create_review,
     },
-    utils::error_handling::AppError,
+    utils::{error_handling::AppError, time::get_today},
 };
 
-async fn create_place_with_defaults(
-    conn: &mut DbConn,
-    place: &NewPlace,
-    reviews: &Vec<NewReview>,
-) -> Result<Place, AppError> {
-    let place = create_place(conn, place)
-        .await
-        .map_err(|_| AppError::BadRequest("Failed to create new place.".into()))?;
+async fn create_place_with_defaults(conn: &mut DbConn, place: &NewPlace, reviews: &Vec<NewReview>) -> Result<Place, AppError> {
+    let place = create_place(conn, place).await.map_err(|_| AppError::BadRequest("Failed to create new place.".into()))?;
 
     for review in reviews {
         let review_payload = NewReview {
@@ -47,10 +46,7 @@ async fn create_place_with_defaults(
     Ok(place)
 }
 
-pub async fn upsert_place(
-    Extension(pool): Extension<DbPool>,
-    Json(payload): Json<UpsertPlacePayload>,
-) -> Result<Json<Value>, AppError> {
+pub async fn upsert_place(Extension(pool): Extension<DbPool>, Json(payload): Json<UpsertPlacePayload>) -> Result<Json<Value>, AppError> {
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let place = &payload.place;
@@ -73,14 +69,36 @@ pub async fn upsert_place(
 
 pub async fn increase_view(
     Extension(pool): Extension<DbPool>,
+    Extension(cache_pool): Extension<CachePool>,
+    Extension(current_user): Extension<User>,
     Path(place_id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
-    let place = match increase_place_view(&mut conn, place_id.as_str()).await {
-        Ok(place) => place,
-        Err(NotFound) => return Err(AppError::NotFound("Place not found.".into())),
-        Err(_) => return Err(AppError::BadRequest("Failed to increase view.".into())),
+    let mut cache_conn = get_cache_conn(&cache_pool).await.map_err(AppError::BadRequest)?;
+
+    let today = get_today();
+
+    let cache_key = format!("view:{}:{}:{}", &current_user.id.to_string(), today, &place_id);
+
+    let current_view: Option<bool> = cache_conn.get(&cache_key).await.map_err(|err| AppError::BadRequest(err.to_string()))?;
+
+    let place = {
+        if current_view.is_some() {
+            get_place_by_place_id(&mut conn, &place_id).await.map_err(|_| AppError::NotFound("Place not found.".into()))?
+        } else {
+            let expire_time = 900; // 15 minutes
+
+            if let Err(err) = cache_conn.set_ex::<&str, bool, i32>(&cache_key, true, expire_time).await {
+                eprintln!("Failed to cache view: {}", err);
+            }
+
+            match increase_place_view(&mut conn, place_id.as_str()).await {
+                Ok(place) => place,
+                Err(NotFound) => return Err(AppError::NotFound("Place not found.".into())),
+                Err(_) => return Err(AppError::BadRequest("Failed to increase view.".into())),
+            }
+        }
     };
 
     Ok(Json(json!({

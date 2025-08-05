@@ -8,17 +8,10 @@ use crate::{
     utils::error_handling::AppError,
 };
 
-pub async fn upload(
-    Extension(current_user): Extension<User>,
-    mut multipart: Multipart,
-) -> Result<Json<Value>, AppError> {
+pub async fn upload(Extension(current_user): Extension<User>, mut multipart: Multipart) -> Result<Json<Value>, AppError> {
     let mut results = Vec::new();
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|err| AppError::BadRequest(err.to_string()))?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(|err| AppError::BadRequest(err.to_string()))? {
         let field_name = field.name().unwrap_or("");
 
         if field_name == "files" {
@@ -34,10 +27,7 @@ pub async fn upload(
                 "other"
             };
 
-            let data = field
-                .bytes()
-                .await
-                .map_err(|err| AppError::BadRequest(err.to_string()))?;
+            let data = field.bytes().await.map_err(|err| AppError::BadRequest(err.to_string()))?;
 
             let destination_path = format!("{}/{}", &current_user.id.to_string(), unique_file_name);
 
@@ -64,15 +54,9 @@ pub async fn upload(
 }
 
 pub async fn delete(Json(payload): Json<Value>) -> Result<Json<Value>, AppError> {
-    let path = payload
-        .get("path")
-        .ok_or(AppError::BadRequest("Missing path.".into()))?
-        .as_str()
-        .unwrap();
+    let path = payload.get("path").ok_or(AppError::BadRequest("Missing path.".into()))?.as_str().unwrap();
 
-    delete_file(path)
-        .await
-        .map_err(|_| AppError::BadRequest("Failed to delete file.".into()))?;
+    delete_file(path).await.map_err(|_| AppError::BadRequest("Failed to delete file.".into()))?;
 
     Ok(Json(json!({})))
 }

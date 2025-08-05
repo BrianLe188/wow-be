@@ -32,8 +32,7 @@ fn haversine(coord1: [f64; 2], coord2: [f64; 2]) -> f64 {
     let delta_phi = to_radians(lat2 - lat1);
     let delta_lambda = to_radians(lng2 - lng1);
 
-    let a = (f64::sin(delta_phi / 2.0)).powi(2)
-        + f64::cos(phi1) * f64::cos(phi2) * (f64::sin(delta_lambda / 2.0)).powi(2);
+    let a = (f64::sin(delta_phi / 2.0)).powi(2) + f64::cos(phi1) * f64::cos(phi2) * (f64::sin(delta_lambda / 2.0)).powi(2);
     let c = 2.0 * f64::atan2(f64::sqrt(a), f64::sqrt(1.0 - a));
 
     R * c

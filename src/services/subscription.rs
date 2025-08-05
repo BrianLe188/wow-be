@@ -8,11 +8,7 @@ use crate::{
     schema::subscriptions,
 };
 
-pub async fn get_subscription_by_user(
-    conn: &mut DbConn,
-    user_id: &str,
-    app_type: &str,
-) -> Result<Subscription, diesel::result::Error> {
+pub async fn get_subscription_by_user(conn: &mut DbConn, user_id: &str, app_type: &str) -> Result<Subscription, diesel::result::Error> {
     let user_uuid = match Uuid::parse_str(user_id) {
         Ok(uuid) => uuid,
         Err(_) => return Err(diesel::result::Error::NotFound),
@@ -25,10 +21,7 @@ pub async fn get_subscription_by_user(
         .await
 }
 
-pub async fn create_subscription<'a>(
-    conn: &mut DbConn,
-    payload: &'a NewSubscription<'a>,
-) -> Result<Subscription, diesel::result::Error> {
+pub async fn create_subscription<'a>(conn: &mut DbConn, payload: &'a NewSubscription<'a>) -> Result<Subscription, diesel::result::Error> {
     diesel::insert_into(subscriptions::table)
         .values(payload)
         .returning(Subscription::as_returning())

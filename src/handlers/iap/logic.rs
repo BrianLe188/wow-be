@@ -29,21 +29,14 @@ fn check_if_has_subscription(subscription: &Subscription) -> bool {
     subscription.start_date <= now && subscription.end_date >= now
 }
 
-async fn create_or_update_subscription<'a>(
-    conn: &mut DbConn,
-    payload: &NewSubscription<'a>,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn create_or_update_subscription<'a>(conn: &mut DbConn, payload: &NewSubscription<'a>) -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = create_subscription(conn, payload).await {}
 
     Ok(())
 }
 
 async fn validate_ios_receipt(receipt: &str) -> Result<Value, Box<dyn std::error::Error>> {
-    let url = if IAP_TEST_MODE {
-        APPLE_SANDBOX_URL
-    } else {
-        APPLE_PROD_URL
-    };
+    let url = if IAP_TEST_MODE { APPLE_SANDBOX_URL } else { APPLE_PROD_URL };
 
     let payload = serde_json::json!({
         "receipt-data": receipt,
@@ -57,12 +50,7 @@ async fn validate_ios_receipt(receipt: &str) -> Result<Value, Box<dyn std::error
     Ok(response.json().await?)
 }
 
-async fn process_purchase(
-    conn: &mut DbConn,
-    app_type: &str,
-    user_id: &str,
-    receipt: Value,
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn process_purchase(conn: &mut DbConn, app_type: &str, user_id: &str, receipt: Value) -> Result<(), Box<dyn std::error::Error>> {
     match app_type {
         "ios" => {
             let receipt_data = receipt.as_str().ok_or("Invalid iOS receipt")?;
@@ -73,36 +61,14 @@ async fn process_purchase(
 
             let subscription = NewSubscription {
                 app: app_type,
-                environment: if IAP_TEST_MODE {
-                    "sandbox"
-                } else {
-                    "production"
-                },
+                environment: if IAP_TEST_MODE { "sandbox" } else { "production" },
                 user_id: Uuid::parse_str(user_id)?,
-                orig_tx_id: latest_receipt_info["original_transaction_id"]
-                    .as_str()
-                    .unwrap_or_default(),
-                latest_receipt: validation_response["latest_receipt"]
-                    .as_str()
-                    .unwrap_or_default(),
+                orig_tx_id: latest_receipt_info["original_transaction_id"].as_str().unwrap_or_default(),
+                latest_receipt: validation_response["latest_receipt"].as_str().unwrap_or_default(),
                 validation_response: validation_response_str.as_str(),
-                start_date: NaiveDateTime::from_timestamp_millis(
-                    latest_receipt_info["original_purchase_date_ms"]
-                        .as_str()
-                        .unwrap_or("0")
-                        .parse::<i64>()?,
-                )
-                .unwrap_or_default(),
-                end_date: NaiveDateTime::from_timestamp_millis(
-                    latest_receipt_info["expires_date_ms"]
-                        .as_str()
-                        .unwrap_or("0")
-                        .parse::<i64>()?,
-                )
-                .unwrap_or_default(),
-                product_id: latest_receipt_info["product_id"]
-                    .as_str()
-                    .unwrap_or_default(),
+                start_date: NaiveDateTime::from_timestamp_millis(latest_receipt_info["original_purchase_date_ms"].as_str().unwrap_or("0").parse::<i64>()?).unwrap_or_default(),
+                end_date: NaiveDateTime::from_timestamp_millis(latest_receipt_info["expires_date_ms"].as_str().unwrap_or("0").parse::<i64>()?).unwrap_or_default(),
+                product_id: latest_receipt_info["product_id"].as_str().unwrap_or_default(),
                 is_cancelled: false,
                 fake: false,
             };
@@ -116,11 +82,7 @@ async fn process_purchase(
     Ok(())
 }
 
-pub async fn save_receipt(
-    Extension(pool): Extension<DbPool>,
-    Extension(current_user): Extension<User>,
-    Json(payload): Json<SaveReceiptPayload>,
-) -> Result<Json<Value>, AppError> {
+pub async fn save_receipt(Extension(pool): Extension<DbPool>, Extension(current_user): Extension<User>, Json(payload): Json<SaveReceiptPayload>) -> Result<Json<Value>, AppError> {
     let user_id = current_user.id;
 
     let app_type = payload.app_type;
@@ -146,11 +108,7 @@ pub async fn save_receipt(
     Ok(Json(json!({})))
 }
 
-pub async fn get_user_subscription(
-    Extension(pool): Extension<DbPool>,
-    Extension(current_user): Extension<User>,
-    Path(app_type): Path<String>,
-) -> Result<Json<Value>, AppError> {
+pub async fn get_user_subscription(Extension(pool): Extension<DbPool>, Extension(current_user): Extension<User>, Path(app_type): Path<String>) -> Result<Json<Value>, AppError> {
     let user_id = current_user.id;
 
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
@@ -164,9 +122,7 @@ pub async fn get_user_subscription(
     let has_subscription = check_if_has_subscription(&subscription);
 
     if !has_subscription {
-        return Err(AppError::BadRequest(
-            "Subscription has been cancelled.".into(),
-        ));
+        return Err(AppError::BadRequest("Subscription has been cancelled.".into()));
     }
 
     Ok(Json(json!({

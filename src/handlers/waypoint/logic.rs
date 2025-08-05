@@ -14,11 +14,7 @@ use crate::{
     utils::{error_handling::AppError, tsp::nearest_neighbor},
 };
 
-pub async fn optimize_waypoints(
-    Extension(pool): Extension<DbPool>,
-    Extension(current_user): Extension<User>,
-    Json(payload): Json<OptimizeWaypointPayload>,
-) -> Result<Json<Value>, AppError> {
+pub async fn optimize_waypoints(Extension(pool): Extension<DbPool>, Extension(current_user): Extension<User>, Json(payload): Json<OptimizeWaypointPayload>) -> Result<Json<Value>, AppError> {
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let feature_usage = get_feature_usage_by_user(&mut conn, &current_user.id.to_string())
@@ -55,9 +51,7 @@ pub async fn optimize_waypoints(
                 }
             };
 
-            give_usage_count_to_user(&mut conn, &current_user.id.to_string(), -1)
-                .await
-                .map_err(|err| err.to_string())
+            give_usage_count_to_user(&mut conn, &current_user.id.to_string(), -1).await.map_err(|err| err.to_string())
         })
         .await;
 

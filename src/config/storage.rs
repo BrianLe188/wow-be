@@ -9,10 +9,7 @@ pub async fn upload_file(destination_path: &str, buffer: Vec<u8>) -> Result<Stri
     let storage_bucket_name = env::var("STORAGE_BUCKET_NAME").map_err(|err| err.to_string())?;
     let storage_anon_key = env::var("STORAGE_ANON_KEY").map_err(|err| err.to_string())?;
 
-    let upload_url = format!(
-        "{}/storage/v1/object/{}/{}",
-        storage_url, storage_bucket_name, destination_path
-    );
+    let upload_url = format!("{}/storage/v1/object/{}/{}", storage_url, storage_bucket_name, destination_path);
 
     let client = Client::new();
 
@@ -38,10 +35,7 @@ pub async fn delete_file(path: &str) -> Result<(), String> {
     let storage_bucket_name = env::var("STORAGE_BUCKET_NAME").map_err(|err| err.to_string())?;
     let storage_anon_key = env::var("STORAGE_ANON_KEY").map_err(|err| err.to_string())?;
 
-    let delete_url = format!(
-        "{}/storage/v1/object/{}/{}",
-        storage_url, storage_bucket_name, path
-    );
+    let delete_url = format!("{}/storage/v1/object/{}/{}", storage_url, storage_bucket_name, path);
 
     let client = Client::new();
 

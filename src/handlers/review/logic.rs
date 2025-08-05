@@ -31,9 +31,7 @@ pub async fn user_review_place(
 
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
-    let new_review = create_review(&mut conn, &payload)
-        .await
-        .map_err(|_| AppError::BadRequest("Failed to create review.".into()))?;
+    let new_review = create_review(&mut conn, &payload).await.map_err(|_| AppError::BadRequest("Failed to create review.".into()))?;
 
     task::spawn(async move {
         let mut cache_conn = match get_cache_conn(&cache_pool).await {
@@ -47,44 +45,20 @@ pub async fn user_review_place(
         if payload.medias.iter().len() > 0 {
             let upload_photo_code = "UPLOAD_PHOTO";
 
-            if let Err(err) = do_mission(
-                &mut conn,
-                &mut cache_conn,
-                &current_user.id.to_string(),
-                upload_photo_code,
-                Some(payload.medias.iter().len() as i32),
-            )
-            .await
-            {
+            if let Err(err) = do_mission(&mut conn, &mut cache_conn, &current_user.id.to_string(), upload_photo_code, Some(payload.medias.iter().len() as i32)).await {
                 eprintln!("Failed to do mission: {} - {}", upload_photo_code, err)
             };
         }
 
         let review_code = "REVIEW_PLACE";
 
-        if let Err(err) = do_mission(
-            &mut conn,
-            &mut cache_conn,
-            &current_user.id.to_string(),
-            review_code,
-            None,
-        )
-        .await
-        {
+        if let Err(err) = do_mission(&mut conn, &mut cache_conn, &current_user.id.to_string(), review_code, None).await {
             eprintln!("Failed to do mission: {} - {}", review_code, err)
         }
 
-        let increase_payload = UpdateActionCountPayload {
-            review_place: Some(1),
-        };
+        let increase_payload = UpdateActionCountPayload { review_place: Some(1) };
 
-        if let Err(err) = increase_action_count_by_user(
-            &mut conn,
-            &current_user.id.to_string(),
-            &increase_payload,
-        )
-        .await
-        {
+        if let Err(err) = increase_action_count_by_user(&mut conn, &current_user.id.to_string(), &increase_payload).await {
             eprintln!("Failed to increase action count: {} - {}", review_code, err)
         }
     });
@@ -94,21 +68,12 @@ pub async fn user_review_place(
     })))
 }
 
-pub async fn search_reviews(
-    Extension(pool): Extension<DbPool>,
-    Query(query): Query<Value>,
-) -> Result<Json<Value>, AppError> {
-    let place_id = query
-        .get("place_id")
-        .ok_or(AppError::BadRequest("Missing place id.".into()))?
-        .as_str()
-        .unwrap();
+pub async fn search_reviews(Extension(pool): Extension<DbPool>, Query(query): Query<Value>) -> Result<Json<Value>, AppError> {
+    let place_id = query.get("place_id").ok_or(AppError::BadRequest("Missing place id.".into()))?.as_str().unwrap();
 
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
-    let reviews = get_reviews(&mut conn, place_id)
-        .await
-        .map_err(|err| AppError::BadRequest(err.to_string()))?;
+    let reviews = get_reviews(&mut conn, place_id).await.map_err(|err| AppError::BadRequest(err.to_string()))?;
 
     Ok(Json(json!({
         "reviews": reviews

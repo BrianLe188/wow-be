@@ -11,19 +11,14 @@ use crate::{
 pub async fn search_missions(Extension(pool): Extension<DbPool>) -> Result<Json<Value>, AppError> {
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
-    let missions = get_missions(&mut conn)
-        .await
-        .map_err(|err| AppError::BadRequest(err.to_string()))?;
+    let missions = get_missions(&mut conn).await.map_err(|err| AppError::BadRequest(err.to_string()))?;
 
     Ok(Json(json!({
         "missions": missions
     })))
 }
 
-pub async fn create_new_mission(
-    Extension(pool): Extension<DbPool>,
-    Json(payload): Json<NewMission>,
-) -> Result<Json<Value>, AppError> {
+pub async fn create_new_mission(Extension(pool): Extension<DbPool>, Json(payload): Json<NewMission>) -> Result<Json<Value>, AppError> {
     let mut conn = get_conn(&pool).await.map_err(AppError::BadRequest)?;
 
     let mission = create_mission(&mut conn, &payload)
