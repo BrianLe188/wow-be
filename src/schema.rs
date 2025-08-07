@@ -117,6 +117,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    user_place_access (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        place_id -> Uuid,
+        #[sql_name = "type"]
+        type_ -> Varchar,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Uuid,
         email -> Varchar,
@@ -135,5 +146,17 @@ diesel::joinable!(feature_usages -> users (user_id));
 diesel::joinable!(reviews -> places (place_id));
 diesel::joinable!(reviews -> users (user_id));
 diesel::joinable!(subscriptions -> users (user_id));
+diesel::joinable!(user_place_access -> places (place_id));
+diesel::joinable!(user_place_access -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(action_count, exp_history, feature_usages, missions, places, reviews, subscriptions, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    action_count,
+    exp_history,
+    feature_usages,
+    missions,
+    places,
+    reviews,
+    subscriptions,
+    user_place_access,
+    users,
+);

@@ -33,8 +33,13 @@ pub async fn user_review_place(
 
     let new_review = create_review(&mut conn, &payload).await.map_err(|_| AppError::BadRequest("Failed to create review.".into()))?;
 
+    let cache_pool_clone = cache_pool.clone();
+    let pool_clone = pool.clone();
+    let user_id_string = current_user.id.to_string();
+    let medias = payload.medias;
+
     task::spawn(async move {
-        let mut cache_conn = match get_cache_conn(&cache_pool).await {
+        let mut conn = match get_conn(&pool_clone).await {
             Ok(conn) => conn,
             Err(err) => {
                 eprintln!("{}", err);
@@ -42,23 +47,33 @@ pub async fn user_review_place(
             }
         };
 
-        if payload.medias.iter().len() > 0 {
+        let mut cache_conn = match get_cache_conn(&cache_pool_clone).await {
+            Ok(conn) => conn,
+            Err(err) => {
+                eprintln!("{}", err);
+                return;
+            }
+        };
+
+        let media_count = medias.iter().len() as i32;
+
+        if media_count > 0 {
             let upload_photo_code = "UPLOAD_PHOTO";
 
-            if let Err(err) = do_mission(&mut conn, &mut cache_conn, &current_user.id.to_string(), upload_photo_code, Some(payload.medias.iter().len() as i32)).await {
+            if let Err(err) = do_mission(&mut conn, &mut cache_conn, &user_id_string, upload_photo_code, Some(media_count)).await {
                 eprintln!("Failed to do mission: {} - {}", upload_photo_code, err)
             };
         }
 
         let review_code = "REVIEW_PLACE";
 
-        if let Err(err) = do_mission(&mut conn, &mut cache_conn, &current_user.id.to_string(), review_code, None).await {
+        if let Err(err) = do_mission(&mut conn, &mut cache_conn, &user_id_string, review_code, None).await {
             eprintln!("Failed to do mission: {} - {}", review_code, err)
         }
 
         let increase_payload = UpdateActionCountPayload { review_place: Some(1) };
 
-        if let Err(err) = increase_action_count_by_user(&mut conn, &current_user.id.to_string(), &increase_payload).await {
+        if let Err(err) = increase_action_count_by_user(&mut conn, &user_id_string, &increase_payload).await {
             eprintln!("Failed to increase action count: {} - {}", review_code, err)
         }
     });

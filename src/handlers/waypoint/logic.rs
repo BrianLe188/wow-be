@@ -41,17 +41,21 @@ pub async fn optimize_waypoints(Extension(pool): Extension<DbPool>, Extension(cu
         full_path.append(&mut group_path);
     }
 
+    let user_id_string = current_user.id.to_string();
+    let pool_clone = pool.clone();
+
     task::spawn(async move {
         let retry_strategy = ExponentialBackoff::from_millis(10).map(jitter).take(3);
+
         let result = Retry::spawn(retry_strategy, || async {
-            let mut conn = match get_conn(&pool).await {
+            let mut conn = match get_conn(&pool_clone).await {
                 Ok(conn) => conn,
                 Err(err) => {
                     return Err(err.to_string());
                 }
             };
 
-            give_usage_count_to_user(&mut conn, &current_user.id.to_string(), -1).await.map_err(|err| err.to_string())
+            give_usage_count_to_user(&mut conn, &user_id_string, -1).await.map_err(|err| err.to_string())
         })
         .await;
 
